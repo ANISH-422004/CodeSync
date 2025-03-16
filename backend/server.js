@@ -2,17 +2,78 @@ import app from './src/app.js'
 import config from './src/config/config.js'
 import http from 'http'
 import dbConnection from './src/db/db.js'
+import { Server } from "socket.io"
+import jwt from "jsonwebtoken"
+import mongoose from 'mongoose'
+import projectModel from './src/models/project.model.js'
+import userModel from './src/models/user.model.js'
 
 const server = http.createServer(app)
+const io = new Server(server, {
+    cors: {
+        origin: "*"
+    }
+});
+
+dbConnection();
+
+
+// Middleware for Socket.io authentication
+io.use(async (socket, next) => {
+    try {
+        const token = socket.handshake.auth?.token || socket.handshake.headers.authorization?.split(" ")[1];
+        const projectId = socket.handshake.query.projectId
+
+        if (!projectId) return next(new Error("Project ID is required"));
+
+        // Assuming you have a function to check if the projectId is valid
+        const isValidProjectId = mongoose.Types.ObjectId.isValid(projectId)
+        if (!isValidProjectId) return next(new Error("Invalid Project ID"));
+
+        socket.project = await projectModel.findById(projectId)
+
+
+        if (!token) return next(new Error("Authentication Error"));
+
+        const decoded = jwt.verify(token, config.JWT_SECRET);
+        if (!decoded) return next(new Error("Authentication Error"));
+
+        socket.user = decoded;
+        next();
+
+    } catch (error) {
+        next(error);
+    }
+});
+
+
+
+
+// Handling socket connection
+io.on('connection', (socket) => {
+
+    socket.roomId = socket.project._id.toString()
+
+    socket.join(socket.roomId)
+
+    socket.on('project-message', async (data) => {
+        console.log(data)
+        socket.broadcast.to(socket.roomId).emit("project-message", data)
+    })
+
+
+
+    socket.on('disconnect', () => {
+        console.log("User disconnected:", socket.id);
+        socket.leave(socket.room)
+    });
+});
 
 
 
 
 
-server.listen(config.PORT , ()=>{
-    console.log("server Running ")
-})
-
-
-//DB connection
-dbConnection()
+// Start server
+server.listen(config.PORT, () => {
+    console.log(`Server running on port ${config.PORT}`);
+});

@@ -14,6 +14,10 @@ const Protected = ({ children }) => {
         navigate("/login");
         return;
       }
+      if(!token ){
+        navigate("/login")
+        return
+      }
 
       try {
         const res = await axiosInstance.get("/users/profile", {
