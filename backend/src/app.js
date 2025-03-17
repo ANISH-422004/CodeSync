@@ -4,6 +4,7 @@ import morgan from "morgan";
 import cors from "cors";
 import userRoutes from "./routes/user.routes.js"; 
 import projectRoutes from "./routes/project.routes.js"
+import AiRoutes from './routes/ai.routes.js'
 import cookieParser from "cookie-parser";
 const app = express();
 
@@ -24,6 +25,7 @@ app.use(cookieParser())
 // Routes
 app.use("/users", userRoutes);
 app.use("/projects" , projectRoutes)
+app.use("/ai",AiRoutes)
 
 app.get("/", (req, res) => {
   res.json({ message: "API is Working" });

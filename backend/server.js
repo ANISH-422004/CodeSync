@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken"
 import mongoose from 'mongoose'
 import projectModel from './src/models/project.model.js'
 import userModel from './src/models/user.model.js'
+import { generateResult } from './src/services/gemini.service.js'
 
 const server = http.createServer(app)
 const io = new Server(server, {
@@ -58,15 +59,36 @@ io.on('connection', (socket) => {
 
     socket.on('project-message', async (data) => {
         console.log(data)
+
+        const message = data.message
+        const aiIsPresent = message.includes("@ai")
+        if (aiIsPresent) {
+            const prompt = message.replace("@ai", "")
+            const result = await generateResult(prompt)
+
+            //it should be send to every on (io)
+            
+
+            io.to(socket.roomId).emit("project-message", {
+                message: result,
+                sender:{
+                    _id: "Gemini",
+                    email: "AI Response"
+                }
+            })
+
+}
+
+
         socket.broadcast.to(socket.roomId).emit("project-message", data)
     })
 
 
 
-    socket.on('disconnect', () => {
-        console.log("User disconnected:", socket.id);
-        socket.leave(socket.room)
-    });
+socket.on('disconnect', () => {
+    console.log("User disconnected:", socket.id);
+    socket.leave(socket.room)
+});
 });
 
 
